@@ -23,7 +23,7 @@ find_package(Eigen3 REQUIRED)
 ## catkin specific configuration ##
 ###################################
 catkin_package(
-    INCLUDE_DIRS include
+#  INCLUDE_DIRS include
 #  LIBRARIES realtime_occupancy_mapping
 #  CATKIN_DEPENDS roscpp
 #  DEPENDS system_lib
@@ -34,7 +34,6 @@ catkin_package(
 ###########
 
 include_directories(
-    include
     ${catkin_INCLUDE_DIRS}
     ${GRIDMAP3D_INCLUDE_DIRS}
 )
