@@ -23,12 +23,12 @@ You can build the visualization through the following commands:
     
 RUN EXAMPLES
 ------------
-We provide one bag file for you to check the availability of this package.
+We provide one bag file (30sec, 90MB) for you to check the availability of this package.
 
     roslaunch realtime_occupancy_mapping example.launch
     roscd realtime_occupancy_mapping && rosbag play bag/example.bag
 
-RViz that we provides will visualize the occupied cells of occupancy grid in real time.
+RViz will visualize the occupied cells of occupancy grid in real time.
 The visualization option can be found in the source code, which is written as "#define VIS_OCCUPIED_CELLS".
 
 NOTE
