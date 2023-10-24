@@ -2,12 +2,6 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.3)
 PROJECT(realtime_occupancy_mapping)
 
 SET(CMAKE_BUILD_TYPE Release)
-# set(CMAKE_BUILD_TYPE Debug)
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    ADD_COMPILE_OPTIONS(-std=c++11)
-else()
-    ADD_COMPILE_OPTIONS(-std=c++11 -O3)
-endif()
 
 FIND_PACKAGE(catkin REQUIRED COMPONENTS
     roscpp
