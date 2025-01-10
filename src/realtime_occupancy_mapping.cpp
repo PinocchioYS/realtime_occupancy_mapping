@@ -1,47 +1,53 @@
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/message_filter.h>
+#include <tf2_ros/create_timer_ros.h>
 #include <message_filters/subscriber.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <tf/transform_listener.h>
-#include <tf/message_filter.h>
 
-#include <pcl/point_types.h>
-#include <pcl/conversions.h>
-#include <pcl_ros/transforms.h>
-#include <pcl_ros/point_cloud.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/transforms.hpp>
 
 #include <superray_gridmap3d/CullingRegionGrid3D.h>
 
-class MappingServer {
+class MappingServer : public rclcpp::Node {
 public:
-    MappingServer() : occupancy_gridmap(nullptr) { }
+    MappingServer(const std::string& name = "mapping_server") : rclcpp::Node(name), occupancy_gridmap(nullptr) { 
+        declare_parameter("resolution", 0.1);       // defalut value: 0.1 [m]
+        declare_parameter("max_range", 100.0);      // defalut value: 100 [m]
+        declare_parameter("hit_prob", 0.0);         // defalut value: 0.7
+        declare_parameter("miss_prob", 0.0);        // defalut value: 0.4
+        declare_parameter("fixed_frame_id", "map"); // defalut value: map
+    }
 
     ~MappingServer() {
-        delete pointcloud_subscriber;
         delete occupancy_gridmap;
     }
 
     bool initialize(bool verbose = true) {
         // Initialize parameters
-        if(!nh.getParam("resolution", RESOLUTION))          RESOLUTION = 0.1;       // defalut value: 0.1 [m]
-        if(!nh.getParam("max_range", MAXIMUM_RANGE))        MAXIMUM_RANGE = 100.0;  // defalut value: 100 [m]
-        if(!nh.getParam("hit_prob", HIT_PROB))              HIT_PROB = 0.7;         // defalut value: 0.7
-        if(!nh.getParam("miss_prob", MISS_PROB))            MISS_PROB = 0.4;        // defalut value: 0.4
-        if(!nh.getParam("fixed_frame_id", FIXED_FRAME_ID))  FIXED_FRAME_ID = "map"; // defalut value: map
+        RESOLUTION = get_parameter("resolution").as_double();
+        MAXIMUM_RANGE = get_parameter("max_range").as_double();
+        HIT_PROB = get_parameter("hit_prob").as_double();
+        MISS_PROB = get_parameter("miss_prob").as_double();
+        FIXED_FRAME_ID = get_parameter("fixed_frame_id").as_string();
 
-        if(RESOLUTION < 10e-5)                  { ROS_ERROR_STREAM("Invalid voxel size: " << RESOLUTION << " [m] < 0"); return false; }
-        if(MAXIMUM_RANGE < 10e-5)               { ROS_ERROR_STREAM("Invalid maximum range: " << MAXIMUM_RANGE << " [m] < 0"); return false; }
-        if(HIT_PROB < 0.0 || HIT_PROB > 1.0)    { ROS_ERROR_STREAM("Invalid hit prob.: " << HIT_PROB << (HIT_PROB < 0.0 ? " < 0" : " > 1")); return false; }
-        if(MISS_PROB < 0.0 || MISS_PROB > 1.0)  { ROS_ERROR_STREAM("Invalid miss prob.: " << MISS_PROB << (MISS_PROB < 0.0 ? " < 0" : " > 1")); return false; }
-        if(HIT_PROB < MISS_PROB)                { ROS_ERROR_STREAM("Invalid hit/miss prob.: " << HIT_PROB << " < " << MISS_PROB); return false; }
+        if(RESOLUTION < 10e-5)                  { RCLCPP_ERROR_STREAM(get_logger(), "Invalid voxel size: " << RESOLUTION << " [m] < 0"); return false; }
+        if(MAXIMUM_RANGE < 10e-5)               { RCLCPP_ERROR_STREAM(get_logger(), "Invalid maximum range: " << MAXIMUM_RANGE << " [m] < 0"); return false; }
+        if(HIT_PROB < 0.0 || HIT_PROB > 1.0)    { RCLCPP_ERROR_STREAM(get_logger(), "Invalid hit prob.: " << HIT_PROB << (HIT_PROB < 0.0 ? " < 0" : " > 1")); return false; }
+        if(MISS_PROB < 0.0 || MISS_PROB > 1.0)  { RCLCPP_ERROR_STREAM(get_logger(), "Invalid miss prob.: " << MISS_PROB << (MISS_PROB < 0.0 ? " < 0" : " > 1")); return false; }
+        if(HIT_PROB < MISS_PROB)                { RCLCPP_ERROR_STREAM(get_logger(), "Invalid hit/miss prob.: " << HIT_PROB << " < " << MISS_PROB); return false; }
         if(FIXED_FRAME_ID.empty())              { FIXED_FRAME_ID = "map"; }
 
         if(verbose) {
-            ROS_INFO_STREAM("MappingServer Parameters");
-            ROS_INFO_STREAM("   " << "Voxel size: " << RESOLUTION << " [m]");
-            ROS_INFO_STREAM("   " << "Max. range: " << MAXIMUM_RANGE << " [m]");
-            ROS_INFO_STREAM("   " << "Hit Prob. : " << HIT_PROB);
-            ROS_INFO_STREAM("   " << "Miss Prob.: " << MISS_PROB);
+            RCLCPP_INFO_STREAM(get_logger(), "MappingServer Parameters");
+            RCLCPP_INFO_STREAM(get_logger(), "   " << "Voxel size: " << RESOLUTION << " [m]");
+            RCLCPP_INFO_STREAM(get_logger(), "   " << "Max. range: " << MAXIMUM_RANGE << " [m]");
+            RCLCPP_INFO_STREAM(get_logger(), "   " << "Hit Prob. : " << HIT_PROB);
+            RCLCPP_INFO_STREAM(get_logger(), "   " << "Miss Prob.: " << MISS_PROB);
         }
 
         // Create a grid map
@@ -49,12 +55,23 @@ public:
         occupancy_gridmap->setProbHit(HIT_PROB);
         occupancy_gridmap->setProbMiss(MISS_PROB);
 
-        pointcloud_subscriber = new message_filters::Subscriber<sensor_msgs::PointCloud2>(nh, "/realtime_occupancy_mapping/pointcloud_in", 1);
-        tf_pointcloud_subscriber = new tf::MessageFilter<sensor_msgs::PointCloud2>(*pointcloud_subscriber, tf_listener, FIXED_FRAME_ID, 1);
-        tf_pointcloud_subscriber->registerCallback(boost::bind(&MappingServer::update_occupancy_map, this, _1));
+        pointcloud_subscriber = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>>(
+            this, "/realtime_occupancy_mapping/pointcloud_in"
+        );
+        tf_buffer = std::make_shared<tf2_ros::Buffer>(get_clock());
+        auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
+            this->get_node_base_interface(),
+            this->get_node_timers_interface()
+        );
+        tf_buffer->setCreateTimerInterface(timer_interface);
+        tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
+        tf_pointcloud_subscriber = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
+            *pointcloud_subscriber, *tf_buffer, FIXED_FRAME_ID, 1, get_node_logging_interface(), get_node_clock_interface()
+        );
+        tf_pointcloud_subscriber->registerCallback(std::bind(&MappingServer::update_occupancy_map, this, std::placeholders::_1));
 
         // Visualization Publishers
-        occupied_cells_publisher = nh.advertise<sensor_msgs::PointCloud2>("/realtime_occupancy_mapping/occupied_cells", 1);
+        occupied_cells_publisher = create_publisher<sensor_msgs::msg::PointCloud2>("/realtime_occupancy_mapping/occupied_cells", rclcpp::QoS(1));
 
         return true;
     }
@@ -66,17 +83,17 @@ public:
      *
      * @param src_pc: a pointcloud in the sensor coordinate
      */
-    void update_occupancy_map(const sensor_msgs::PointCloud2ConstPtr& _src_pc) {
+    void update_occupancy_map(const sensor_msgs::msg::PointCloud2::ConstSharedPtr _src_pc) {
         gridmap3d::Pointcloud pointcloud;
         gridmap3d::point3d origin;
         if(!parse_valid_sensor_measurement(*_src_pc, pointcloud, origin)) {
-            ROS_ERROR_STREAM("Invalid sensor measurement.");
+            RCLCPP_ERROR_STREAM(get_logger(), "Invalid sensor measurement.");
             return;
         }
 
         occupancy_gridmap->insertPointCloudRays(pointcloud, origin);
 
-        if(occupied_cells_publisher.getNumSubscribers() > 0)
+        if(occupied_cells_publisher->get_subscription_count() > 0)
             publish_occupied_cells();
     }
 
@@ -96,25 +113,22 @@ public:
         }
 
         // Convert the centers to ROS message; pcl::PointCloud --> sensor_msgs::PointCloud2
-        sensor_msgs::PointCloud2 msg_pointcloud;
+        sensor_msgs::msg::PointCloud2 msg_pointcloud;
         pcl::toROSMsg(pcl_pointcloud, msg_pointcloud);
         msg_pointcloud.header.frame_id = FIXED_FRAME_ID;
-        msg_pointcloud.header.stamp = ros::Time::now();
-        msg_pointcloud.header.seq = 0;
+        msg_pointcloud.header.stamp = get_clock()->now();
 
         // Publish the message
-        occupied_cells_publisher.publish(msg_pointcloud);
+        occupied_cells_publisher->publish(msg_pointcloud);
     }
 
 
 protected:
-    // Node handle
-    ros::NodeHandle nh;
-
     // Transform and pointcloud subscribers
-    message_filters::Subscriber<sensor_msgs::PointCloud2>*  pointcloud_subscriber;
-    tf::MessageFilter<sensor_msgs::PointCloud2>*            tf_pointcloud_subscriber;
-    tf::TransformListener                                   tf_listener;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>> pointcloud_subscriber;
+    std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>> tf_pointcloud_subscriber;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer;
 
     // Options =========================================================================================================
     std::string FIXED_FRAME_ID;
@@ -124,7 +138,7 @@ protected:
     double MISS_PROB;
 
     // Map publisher
-    ros::Publisher occupied_cells_publisher;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr occupied_cells_publisher;
 
     // Occupancy grid
     gridmap3d::CullingRegionGrid3D* occupancy_gridmap;
@@ -138,14 +152,14 @@ protected:
      * @param origin: [output] sensor origin in the world coordinate
      * @return validity of the sensor measurement
      */
-    bool parse_valid_sensor_measurement(const sensor_msgs::PointCloud2& _ros_pc, gridmap3d::Pointcloud& _pc, gridmap3d::point3d& _origin) {
+    bool parse_valid_sensor_measurement(const sensor_msgs::msg::PointCloud2& _ros_pc, gridmap3d::Pointcloud& _pc, gridmap3d::point3d& _origin) {
         // Pose of the sensor frame
-        tf::StampedTransform sensor_to_world;
+        geometry_msgs::msg::TransformStamped sensor_to_world;
         try{
-            tf_listener.lookupTransform(FIXED_FRAME_ID, _ros_pc.header.frame_id, _ros_pc.header.stamp, sensor_to_world);
+            sensor_to_world = tf_buffer->lookupTransform(FIXED_FRAME_ID, _ros_pc.header.frame_id, tf2::TimePointZero);
         }
-        catch(tf::TransformException& e) {
-            ROS_ERROR_STREAM("Cannot find a transform from sensor to world: " << _ros_pc.header.frame_id << " --> " << FIXED_FRAME_ID);
+        catch(tf2::TransformException& e) {
+            RCLCPP_ERROR_STREAM(get_logger(), "Cannot find a transform from sensor to world: " << _ros_pc.header.frame_id << " --> " << FIXED_FRAME_ID);
             return false;
         }
 
@@ -168,19 +182,17 @@ protected:
         }
 
         // in the world coordinate =====================================================================================
-        Eigen::Matrix4f transform;
-        pcl_ros::transformAsMatrix(sensor_to_world, transform);
         pcl::PointCloud<pcl::PointXYZ> pcl_pointcloud_in_world_coordinate;
-        pcl::transformPointCloud(pcl_pointcloud_in_sensor_coordinate, pcl_pointcloud_in_world_coordinate, transform);
+        pcl_ros::transformPointCloud(pcl_pointcloud_in_sensor_coordinate, pcl_pointcloud_in_world_coordinate, sensor_to_world);
 
         _pc.reserve(pcl_pointcloud_in_world_coordinate.size());
         for(const auto& point : pcl_pointcloud_in_world_coordinate)
             _pc.push_back(point.x, point.y, point.z);
 
         // sensor origin
-        _origin.x() = sensor_to_world.getOrigin().x();
-        _origin.y() = sensor_to_world.getOrigin().y();
-        _origin.z() = sensor_to_world.getOrigin().z();
+        _origin.x() = sensor_to_world.transform.translation.x;
+        _origin.y() = sensor_to_world.transform.translation.y;
+        _origin.z() = sensor_to_world.transform.translation.z;
 
         return _pc.size() != 0;
     }
@@ -189,20 +201,15 @@ protected:
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "realtime_occupancy_mapping");
+    rclcpp::init(argc, argv);
 
-    std::shared_ptr<MappingServer> mapping_server = std::make_shared<MappingServer>();
+    std::shared_ptr<MappingServer> mapping_server = std::make_shared<MappingServer>("realtime_occupancy_mapping");
 
     bool success = mapping_server->initialize(true);
-    if(success) {
-        try{
-            ros::spin();
-        }
-        catch(std::runtime_error& e) {
-            ROS_ERROR("Exception: %s", e.what());
-            return -1;
-        }
-    }
+    if(success)
+        rclcpp::spin(mapping_server);
+
+    rclcpp::shutdown();
     
     return 0;
 }

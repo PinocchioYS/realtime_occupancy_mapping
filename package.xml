@@ -1,30 +1,24 @@
 <?xml version="1.0"?>
-<package format="2">
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
   <name>realtime_occupancy_mapping</name>
   <version>1.0.0</version>
   <description>The realtime_occupancy_mapping package</description>
+  <maintainer email="youngsun.kwon@etri.re.kr">Youngsun Kwon</maintainer>
+  <license>TODO: License declaration</license>
 
-  <maintainer email="youngsun.kwon@kaist.ac.kr">Youngsun Kwon</maintainer>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <license>TODO</license>
+  <depend>rclcpp</depend>
+  <depend>tf2_ros</depend>
+  <depend>sensor_msgs</depend>
+  <depend>message_filters</depend>
+  <depend>pcl_ros</depend>
+  <depend>pcl_conversions</depend>
 
-  <author email="youngsun.kwon@kaist.ac.kr">Youngsun Kwon</author>
+  <exec_depend>ros2launch</exec_depend>
 
-  <buildtool_depend>catkin</buildtool_depend>
-
-  <build_depend>roscpp</build_depend>
-  <build_depend>tf</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>pcl_ros</build_depend>
-
-  <build_export_depend>roscpp</build_export_depend>
-  <build_export_depend>tf</build_export_depend>
-  <build_export_depend>sensor_msgs</build_export_depend>
-  <build_export_depend>pcl_ros</build_export_depend>
-
-  <exec_depend>roscpp</exec_depend>
-  <exec_depend>tf</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>pcl_ros</exec_depend>
-  
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
 </package>
