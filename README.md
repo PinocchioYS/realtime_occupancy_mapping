@@ -10,7 +10,7 @@ BUILD
 This package requires to install [SuperRay library](https://github.com/PinocchioYS/SuperRay).
 For example of installing the library, run:
 
-    cd ~/Downloads && git clone https://github.com/PinocchioYS/SuperRay.git
+    git clone https://github.com/PinocchioYS/SuperRay.git
     mkdir SuperRay/build && cd SuperRay/build
     cmake ..
     sudo make install
@@ -26,13 +26,12 @@ RUN EXAMPLES
 We provide one bag file (30sec, 90MB) for you to check the availability of this package.
 
     roslaunch realtime_occupancy_mapping example.launch
-    roscd realtime_occupancy_mapping && rosbag play bag/example.bag
 
 RViz will visualize the occupied cells of occupancy grid in real time.
 
 NOTE
 ----
 Please check the fixed frame id and the topic name of pointcloud carefully when using this package in your system.
-You can find how to set these values in the example launch file.
+Refer the example launch file to set the rosbag file and the parameters.
   
 If you have any problem or issue, notice it at [here](https://github.com/PinocchioYS/realtime_occupancy_mapping/issues).
