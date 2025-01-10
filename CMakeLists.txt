@@ -1,17 +1,19 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.3)
 PROJECT(realtime_occupancy_mapping)
 
-SET(CMAKE_BUILD_TYPE Release)
+IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+   SET(CMAKE_BUILD_TYPE Release)
+ENDIF()
 
 FIND_PACKAGE(catkin REQUIRED COMPONENTS
-    roscpp
-    tf
-    sensor_msgs
-    pcl_ros
+	roscpp
+	tf
+	sensor_msgs
+	pcl_ros
 )
 
-find_package(superray_gridmap3d REQUIRED)
-find_package(Eigen3 REQUIRED)
+## System dependencies are found with CMake's conventions
+find_package(superray-gridmap3d REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -19,23 +21,23 @@ find_package(Eigen3 REQUIRED)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES realtime_occupancy_mapping
-#  CATKIN_DEPENDS roscpp
+ CATKIN_DEPENDS roscpp tf sensor_msgs pcl_ros
 #  DEPENDS system_lib
 )
 
 ###########
 ## Build ##
 ###########
-
 include_directories(
-    ${catkin_INCLUDE_DIRS}
-    ${GRIDMAP3D_INCLUDE_DIRS}
+	${catkin_INCLUDE_DIRS}
+	${SUPERRAY_GRIDMAP3D_INCLUDE_DIRS}
 )
 
+##### Grid3D Real-time Occupancy Mapping Node #####
 add_executable(realtime_occupancy_mapping
-    src/realtime_occupancy_mapping.cpp
+	src/realtime_occupancy_mapping.cpp
 )
 target_link_libraries(realtime_occupancy_mapping
-    ${catkin_LIBRARIES}
-    ${GRIDMAP3D_LIBRARIES}
+	${catkin_LIBRARIES}
+	${SUPERRAY_GRIDMAP3D_LIBRARIES}
 )

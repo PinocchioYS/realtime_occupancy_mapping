@@ -8,20 +8,23 @@
 
   <license>TODO</license>
 
-  <author email="youngsun.kwon@kaist.ac.kr">Youngsun Kwon</author> -->
+  <author email="youngsun.kwon@kaist.ac.kr">Youngsun Kwon</author>
 
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>roscpp</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>sensor_msgs</build_depend>
+  <build_depend>pcl_ros</build_depend>
 
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>tf</build_export_depend>
   <build_export_depend>sensor_msgs</build_export_depend>
+  <build_export_depend>pcl_ros</build_export_depend>
 
   <exec_depend>roscpp</exec_depend>
   <exec_depend>tf</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>pcl_ros</exec_depend>
   
 </package>

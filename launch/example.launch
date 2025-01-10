@@ -6,12 +6,15 @@
     <param name="hit_prob"       type="double" value="0.8"  />
     <param name="miss_prob"      type="double" value="0.2"  />
 
+    <!-- Run real-time occupancy mapping node -->
+    <node pkg="realtime_occupancy_mapping" type="realtime_occupancy_mapping" name="realtime_occupancy_mapping" output="screen">
+        <remap from="/realtime_occupancy_mapping/pointcloud_in" to="/velodyne_points"/>
+    </node>
+
     <!-- Run RViz -->
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find realtime_occupancy_mapping)/rviz/example.rviz" />
 
-    <!-- Run real-time occupancy mapping node -->
-    <node pkg="realtime_occupancy_mapping" type="realtime_occupancy_mapping" name="realtime_occupancy_mapping">
-        <remap from="/realtime_occupancy_mapping/pointcloud_in" to="/velodyne_points"/>
-    </node>
+    <!-- Play ROSBag -->
+    <node name="rosbag_play" pkg="rosbag" type="play" args="$(find realtime_occupancy_mapping)/bag/example.bag"/>
 
 </launch>
